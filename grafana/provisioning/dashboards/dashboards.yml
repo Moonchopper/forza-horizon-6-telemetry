@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: forza
+    orgId: 1
+    folder: Forza
+    type: file
+    disableDeletion: false
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

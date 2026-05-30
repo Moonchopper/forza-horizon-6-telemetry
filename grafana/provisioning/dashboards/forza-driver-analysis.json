@@ -1,0 +1,122 @@
+{
+  "uid": "forza-driver-analysis",
+  "title": "Forza - Driver Analysis",
+  "tags": ["forza", "analysis"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "5s",
+  "time": { "from": "now-5m", "to": "now" },
+  "annotations": { "list": [] },
+  "templating": {
+    "list": [
+      { "name": "bucket", "type": "constant", "label": "Bucket", "query": "telemetry", "current": { "text": "telemetry", "value": "telemetry" }, "hide": 2 }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "xychart",
+      "title": "Friction circle (G-G diagram)  -  lateral vs longitudinal G",
+      "description": "Each point is a moment in time. The cloud's radius is how much grip you're using; a smooth driver fills a circle out to the tire limit.",
+      "gridPos": { "h": 11, "w": 10, "x": 0, "y": 0 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-forza" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "influxdb", "uid": "influxdb-forza" }, "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"acceleration_x\" or r._field == \"acceleration_z\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({ _time: r._time, lateral_g: r.acceleration_x / 9.81, longitudinal_g: r.acceleration_z / 9.81 }))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "min": -2, "max": 2, "decimals": 2, "custom": { "show": "points", "pointSize": { "fixed": 3 } } }, "overrides": [] },
+      "options": { "mapping": "manual", "series": [ { "x": { "matcher": { "id": "byName", "options": "lateral_g" } }, "y": { "matcher": { "id": "byName", "options": "longitudinal_g" } } } ] }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Peak G",
+      "gridPos": { "h": 11, "w": 4, "x": 10, "y": 0 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-forza" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "influxdb", "uid": "influxdb-forza" }, "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"acceleration_x\" or r._field == \"acceleration_z\")\n  |> map(fn: (r) => ({ r with _value: r._value / 9.81 }))\n  |> map(fn: (r) => ({ r with _value: if r._value < 0.0 then -r._value else r._value }))\n  |> group(columns: [\"_field\"])\n  |> max()\n  |> map(fn: (r) => ({ r with _field: if r._field == \"acceleration_x\" then \"Peak lateral G\" else \"Peak longitudinal G\" }))" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 2, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1.0 }, { "color": "red", "value": 1.4 } ] } }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "value_and_name", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": true } }
+    },
+    {
+      "id": 3,
+      "type": "xychart",
+      "title": "Dyno  -  power (hp) & torque (Nm) vs RPM",
+      "description": "Drive through the rev range and this draws your car's power and torque curves.",
+      "gridPos": { "h": 11, "w": 10, "x": 14, "y": 0 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-forza" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "influxdb", "uid": "influxdb-forza" }, "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"current_engine_rpm\" or r._field == \"power\" or r._field == \"torque\")\n  |> pivot(rowKey: [\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({ rpm: r.current_engine_rpm, power_hp: r.power / 745.7, torque_nm: r.torque }))" }
+      ],
+      "fieldConfig": { "defaults": { "custom": { "show": "points", "pointSize": { "fixed": 3 } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "power_hp" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] },
+          { "matcher": { "id": "byName", "options": "torque_nm" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } } ] }
+        ]
+      },
+      "options": { "mapping": "manual", "series": [
+        { "x": { "matcher": { "id": "byName", "options": "rpm" } }, "y": { "matcher": { "id": "byName", "options": "power_hp" } } },
+        { "x": { "matcher": { "id": "byName", "options": "rpm" } }, "y": { "matcher": { "id": "byName", "options": "torque_nm" } } }
+      ] }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Tire slip ratio (wheelspin + / lockup -)",
+      "description": "Per wheel. Spikes above ~0.2 = wheelspin under power; below 0 = lockup under braking.",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 11 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-forza" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "influxdb", "uid": "influxdb-forza" }, "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"tire_slip_ratio_fl\" or r._field == \"tire_slip_ratio_fr\" or r._field == \"tire_slip_ratio_rl\" or r._field == \"tire_slip_ratio_rr\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 5, "showPoints": "never", "thresholdsStyle": { "mode": "line" } }, "thresholds": { "mode": "absolute", "steps": [ { "color": "transparent", "value": null }, { "color": "red", "value": 0.2 } ] } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Tire slip angle (cornering grip)",
+      "description": "How much the tires are sliding laterally. Rising fronts = understeer; rising rears = oversteer.",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 11 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-forza" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "influxdb", "uid": "influxdb-forza" }, "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"tire_slip_angle_fl\" or r._field == \"tire_slip_angle_fr\" or r._field == \"tire_slip_angle_rl\" or r._field == \"tire_slip_angle_rr\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 5, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Suspension travel per corner (weight transfer)",
+      "description": "Dive under braking, squat under power, roll in corners.",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 20 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-forza" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "influxdb", "uid": "influxdb-forza" }, "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"suspension_travel_meters_fl\" or r._field == \"suspension_travel_meters_fr\" or r._field == \"suspension_travel_meters_rl\" or r._field == \"suspension_travel_meters_rr\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "lengthm", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 5, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Speed (km/h) & G-forces (g)",
+      "description": "Speed converted from m/s; lateral and longitudinal acceleration in g.",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 20 },
+      "datasource": { "type": "influxdb", "uid": "influxdb-forza" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "influxdb", "uid": "influxdb-forza" }, "query": "speed = from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\" and r._field == \"speed\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: r._value * 3.6, _field: \"speed_kmh\" }))\ng = from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\" and (r._field == \"acceleration_x\" or r._field == \"acceleration_z\"))\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: r._value / 9.81, _field: if r._field == \"acceleration_x\" then \"lateral_g\" else \"longitudinal_g\" }))\nunion(tables: [speed, g])" }
+      ],
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 0, "showPoints": "never", "axisPlacement": "auto" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "speed_kmh" }, "properties": [ { "id": "unit", "value": "velocitykmh" }, { "id": "custom.axisPlacement", "value": "left" }, { "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } } ] },
+          { "matcher": { "id": "byRegexp", "options": ".*_g" }, "properties": [ { "id": "unit", "value": "none" }, { "id": "custom.axisPlacement", "value": "right" } ] }
+        ]
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    }
+  ]
+}

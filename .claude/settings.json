@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:support.forza.net)",
+      "Bash(python tools/send_test_packet.py --host 127.0.0.1 --port 5300 --rate 60 --duration 1)"
+    ]
+  }
+}

@@ -1,0 +1,126 @@
+{
+  "uid": "forza-live",
+  "title": "Forza Live (real-time)",
+  "tags": ["forza", "live"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 2,
+  "editable": true,
+  "refresh": "",
+  "time": { "from": "now-1m", "to": "now" },
+  "liveNow": true,
+  "annotations": { "list": [] },
+  "templating": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "gauge",
+      "title": "Engine RPM",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "datasource", "uid": "grafana" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "datasource", "uid": "grafana" }, "queryType": "measurements", "channel": "stream/forza/forza", "filter": { "fields": ["current_engine_rpm"] } }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "rotrpm", "min": 0, "max": 8000, "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 6000 }, { "color": "red", "value": 7000 } ] } },
+        "overrides": []
+      },
+      "options": { "showThresholdLabels": false, "showThresholdMarkers": true, "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/current_engine_rpm/", "values": false } }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Gear",
+      "gridPos": { "h": 8, "w": 3, "x": 6, "y": 0 },
+      "datasource": { "type": "datasource", "uid": "grafana" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "datasource", "uid": "grafana" }, "queryType": "measurements", "channel": "stream/forza/forza", "filter": { "fields": ["gear"] } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "options": { "colorMode": "value", "graphMode": "none", "textMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/gear/", "values": false } }
+    },
+    {
+      "id": 3,
+      "type": "gauge",
+      "title": "Speed (m/s)",
+      "gridPos": { "h": 8, "w": 6, "x": 9, "y": 0 },
+      "datasource": { "type": "datasource", "uid": "grafana" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "datasource", "uid": "grafana" }, "queryType": "measurements", "channel": "stream/forza/forza", "filter": { "fields": ["speed"] } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "velocityms", "min": 0, "max": 120, "color": { "mode": "continuous-GrYlRd" } }, "overrides": [] },
+      "options": { "showThresholdMarkers": false, "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/speed/", "values": false } }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Boost",
+      "gridPos": { "h": 8, "w": 3, "x": 15, "y": 0 },
+      "datasource": { "type": "datasource", "uid": "grafana" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "datasource", "uid": "grafana" }, "queryType": "measurements", "channel": "stream/forza/forza", "filter": { "fields": ["boost"] } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 1, "color": { "mode": "fixed", "fixedColor": "purple" } }, "overrides": [] },
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/boost/", "values": false } }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Race active",
+      "gridPos": { "h": 8, "w": 3, "x": 18, "y": 0 },
+      "datasource": { "type": "datasource", "uid": "grafana" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "datasource", "uid": "grafana" }, "queryType": "measurements", "channel": "stream/forza/forza", "filter": { "fields": ["is_race_on"] } }
+      ],
+      "fieldConfig": { "defaults": { "mappings": [ { "type": "value", "options": { "0": { "text": "PAUSED", "color": "red" }, "1": { "text": "ON", "color": "green" } } }], "color": { "mode": "thresholds" } }, "overrides": [] },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "value", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/is_race_on/", "values": false } }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Engine RPM",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "datasource", "uid": "grafana" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "datasource", "uid": "grafana" }, "queryType": "measurements", "channel": "stream/forza/forza" }
+      ],
+      "transformations": [
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["time", "Time", "current_engine_rpm"] } } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "rotrpm", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Throttle / Brake (0-255)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "datasource", "uid": "grafana" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "datasource", "uid": "grafana" }, "queryType": "measurements", "channel": "stream/forza/forza" }
+      ],
+      "transformations": [
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["time", "Time", "accel", "brake"] } } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "max": 255, "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 20, "showPoints": "never" } },
+        "overrides": [ { "matcher": { "id": "byName", "options": "brake" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] }, { "matcher": { "id": "byName", "options": "accel" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } } ] } ] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Tire temps (FL/FR/RL/RR)",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "datasource": { "type": "datasource", "uid": "grafana" },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "datasource", "uid": "grafana" }, "queryType": "measurements", "channel": "stream/forza/forza" }
+      ],
+      "transformations": [
+        { "id": "filterFieldsByName", "options": { "include": { "names": ["time", "Time", "tire_temp_fl", "tire_temp_fr", "tire_temp_rl", "tire_temp_rr"] } } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "celsius", "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 5, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    }
+  ]
+}
