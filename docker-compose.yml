@@ -37,6 +37,8 @@ services:
       INFLUX_BUCKET: ${INFLUX_BUCKET}
       # Grafana Live needs websockets; enabling explicitly is harmless.
       GF_LIVE_ALLOWED_ORIGINS: "*"
+      # Allow 1s auto-refresh (default min is 5s) for the near-real-time scatter panels.
+      GF_DASHBOARDS_MIN_REFRESH_INTERVAL: "1s"
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro

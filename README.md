@@ -9,10 +9,22 @@ dashboards — using an off-the-shelf, fully containerized stack.
 ```
 
 - **Telegraf** receives the UDP packets and parses the 324-byte binary format
-  *declaratively* (no custom parser code) — see [telegraf/telegraf.conf](telegraf/telegraf.conf).
+  *declaratively* (no custom parser code), then a small starlark processor adds
+  derived fields (`lateral_g`, `longitudinal_g`, `speed_kmh`, `power_hp`) so both
+  sinks carry them — see [telegraf/telegraf.conf](telegraf/telegraf.conf).
 - **InfluxDB v2** stores everything durably for session history and lap comparison.
-- **Grafana** shows both a **live** dashboard (real-time over WebSocket via Grafana
-  Live) and a **history** dashboard (Flux queries against InfluxDB).
+- **Grafana** serves paired dashboards — a **Live** (Grafana Live, sub-second
+  WebSocket push) and an **Analysis** (Flux queries against InfluxDB, with
+  history + auto race annotations) twin for each function:
+
+  | Function | Live (push) | Analysis (query) |
+  |---|---|---|
+  | **Cockpit** — gauges, inputs, tire temps, track map | `Forza Cockpit (Live)` | `Forza Cockpit (Analysis)` |
+  | **Driver** — friction circle, dyno, slip, suspension | `Forza Driver (Live)` | `Forza Driver (Analysis)` |
+
+  Live dashboards update instantly but show a rolling browser buffer; Analysis
+  dashboards query InfluxDB so they retain full history, support any time range,
+  and draw race START/STOP annotations from the `is_race_on` field.
 
 Design details and the full verified packet layout: [docs/design.md](docs/design.md).
 
@@ -29,8 +41,8 @@ Design details and the full verified packet layout: [docs/design.md](docs/design
    docker compose up -d
    ```
    Grafana → http://localhost:3000 (login from `.env`).
-   Two dashboards are pre-provisioned under the **Forza** folder:
-   *Forza Live (real-time)* and *Forza History (sessions)*.
+   Four dashboards are pre-provisioned under the **Forza** folder — a Live and an
+   Analysis twin for both Cockpit and Driver (see the table above).
 
 3. **Verify without the game** (recommended first run):
    ```sh

@@ -1,17 +1,19 @@
 {
-  "uid": "forza-driver-analysis",
-  "title": "Forza Driver (Analysis)",
+  "uid": "forza-driver-live",
+  "title": "Forza Driver (Live)",
   "tags": [
     "forza",
-    "analysis"
+    "analysis",
+    "live"
   ],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
   "editable": true,
-  "refresh": "5s",
+  "refresh": "1s",
+  "liveNow": true,
   "time": {
-    "from": "now-15m",
+    "from": "now-2m",
     "to": "now"
   },
   "annotations": {
@@ -77,8 +79,8 @@
     {
       "id": 1,
       "type": "xychart",
-      "title": "Friction circle (G-G diagram)  -  lateral vs longitudinal G",
-      "description": "Each point is a moment in time. The cloud's radius is how much grip you're using; a smooth driver fills a circle out to the tire limit.",
+      "title": "Friction circle (G-G diagram)  -  live",
+      "description": "Live rolling buffer pushed over WebSocket. Each point is a moment; the cloud radius is grip used. Buffer length = Max data points.",
       "gridPos": {
         "x": 0,
         "y": 0,
@@ -89,6 +91,7 @@
         "type": "influxdb",
         "uid": "influxdb-forza"
       },
+      "maxDataPoints": 800,
       "targets": [
         {
           "refId": "A",
@@ -166,7 +169,7 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Peak G",
+      "title": "Current G",
       "gridPos": {
         "x": 10,
         "y": 0,
@@ -174,17 +177,24 @@
         "h": 8
       },
       "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-forza"
+        "type": "datasource",
+        "uid": "grafana"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-forza"
+            "type": "datasource",
+            "uid": "grafana"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"acceleration_x\" or r._field == \"acceleration_z\")\n  |> map(fn: (r) => ({ r with _value: r._value / 9.81 }))\n  |> map(fn: (r) => ({ r with _value: if r._value < 0.0 then -r._value else r._value }))\n  |> group(columns: [\"_field\"])\n  |> max()\n  |> map(fn: (r) => ({ r with _field: if r._field == \"acceleration_x\" then \"Peak lateral G\" else \"Peak longitudinal G\" }))"
+          "queryType": "measurements",
+          "channel": "stream/forza/forza",
+          "filter": {
+            "fields": [
+              "lateral_g",
+              "longitudinal_g"
+            ]
+          }
         }
       ],
       "fieldConfig": {
@@ -216,22 +226,22 @@
       },
       "options": {
         "colorMode": "background",
-        "graphMode": "none",
+        "graphMode": "area",
         "textMode": "value_and_name",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
           ],
           "fields": "",
-          "values": true
+          "values": false
         }
       }
     },
     {
       "id": 3,
       "type": "xychart",
-      "title": "Dyno  -  power (hp) & torque (Nm) vs RPM",
-      "description": "Drive through the rev range and this draws your car's power and torque curves.",
+      "title": "Dyno  -  power (hp) & torque (Nm) vs RPM  -  live",
+      "description": "Live rolling buffer. Run the rev range to draw the curves.",
       "gridPos": {
         "x": 14,
         "y": 0,
@@ -242,6 +252,7 @@
         "type": "influxdb",
         "uid": "influxdb-forza"
       },
+      "maxDataPoints": 800,
       "targets": [
         {
           "refId": "A",
@@ -340,25 +351,40 @@
       "id": 40,
       "type": "timeseries",
       "title": "Slip ratio FL",
-      "description": "Per wheel. Spikes above ~0.2 = wheelspin under power; below 0 = lockup under braking.",
       "gridPos": {
         "x": 0,
         "y": 8,
         "w": 6,
         "h": 5
       },
+      "maxDataPoints": 7200,
       "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-forza"
+        "type": "datasource",
+        "uid": "grafana"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-forza"
+            "type": "datasource",
+            "uid": "grafana"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"tire_slip_ratio_fl\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "queryType": "measurements",
+          "channel": "stream/forza/forza"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "time",
+                "Time",
+                "tire_slip_ratio_fl"
+              ]
+            }
+          }
         }
       ],
       "fieldConfig": {
@@ -409,25 +435,40 @@
       "id": 41,
       "type": "timeseries",
       "title": "Slip ratio FR",
-      "description": "Per wheel. Spikes above ~0.2 = wheelspin under power; below 0 = lockup under braking.",
       "gridPos": {
         "x": 6,
         "y": 8,
         "w": 6,
         "h": 5
       },
+      "maxDataPoints": 7200,
       "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-forza"
+        "type": "datasource",
+        "uid": "grafana"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-forza"
+            "type": "datasource",
+            "uid": "grafana"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"tire_slip_ratio_fr\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "queryType": "measurements",
+          "channel": "stream/forza/forza"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "time",
+                "Time",
+                "tire_slip_ratio_fr"
+              ]
+            }
+          }
         }
       ],
       "fieldConfig": {
@@ -478,25 +519,40 @@
       "id": 42,
       "type": "timeseries",
       "title": "Slip ratio RL",
-      "description": "Per wheel. Spikes above ~0.2 = wheelspin under power; below 0 = lockup under braking.",
       "gridPos": {
         "x": 0,
         "y": 13,
         "w": 6,
         "h": 5
       },
+      "maxDataPoints": 7200,
       "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-forza"
+        "type": "datasource",
+        "uid": "grafana"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-forza"
+            "type": "datasource",
+            "uid": "grafana"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"tire_slip_ratio_rl\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "queryType": "measurements",
+          "channel": "stream/forza/forza"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "time",
+                "Time",
+                "tire_slip_ratio_rl"
+              ]
+            }
+          }
         }
       ],
       "fieldConfig": {
@@ -547,25 +603,40 @@
       "id": 43,
       "type": "timeseries",
       "title": "Slip ratio RR",
-      "description": "Per wheel. Spikes above ~0.2 = wheelspin under power; below 0 = lockup under braking.",
       "gridPos": {
         "x": 6,
         "y": 13,
         "w": 6,
         "h": 5
       },
+      "maxDataPoints": 7200,
       "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-forza"
+        "type": "datasource",
+        "uid": "grafana"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-forza"
+            "type": "datasource",
+            "uid": "grafana"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"tire_slip_ratio_rr\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "queryType": "measurements",
+          "channel": "stream/forza/forza"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "time",
+                "Time",
+                "tire_slip_ratio_rr"
+              ]
+            }
+          }
         }
       ],
       "fieldConfig": {
@@ -616,25 +687,40 @@
       "id": 50,
       "type": "timeseries",
       "title": "Slip angle FL",
-      "description": "How much the tires are sliding laterally. Rising fronts = understeer; rising rears = oversteer.",
       "gridPos": {
         "x": 12,
         "y": 8,
         "w": 6,
         "h": 5
       },
+      "maxDataPoints": 7200,
       "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-forza"
+        "type": "datasource",
+        "uid": "grafana"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-forza"
+            "type": "datasource",
+            "uid": "grafana"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"tire_slip_angle_fl\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "queryType": "measurements",
+          "channel": "stream/forza/forza"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "time",
+                "Time",
+                "tire_slip_angle_fl"
+              ]
+            }
+          }
         }
       ],
       "fieldConfig": {
@@ -669,25 +755,40 @@
       "id": 51,
       "type": "timeseries",
       "title": "Slip angle FR",
-      "description": "How much the tires are sliding laterally. Rising fronts = understeer; rising rears = oversteer.",
       "gridPos": {
         "x": 18,
         "y": 8,
         "w": 6,
         "h": 5
       },
+      "maxDataPoints": 7200,
       "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-forza"
+        "type": "datasource",
+        "uid": "grafana"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-forza"
+            "type": "datasource",
+            "uid": "grafana"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"tire_slip_angle_fr\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "queryType": "measurements",
+          "channel": "stream/forza/forza"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "time",
+                "Time",
+                "tire_slip_angle_fr"
+              ]
+            }
+          }
         }
       ],
       "fieldConfig": {
@@ -722,25 +823,40 @@
       "id": 52,
       "type": "timeseries",
       "title": "Slip angle RL",
-      "description": "How much the tires are sliding laterally. Rising fronts = understeer; rising rears = oversteer.",
       "gridPos": {
         "x": 12,
         "y": 13,
         "w": 6,
         "h": 5
       },
+      "maxDataPoints": 7200,
       "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-forza"
+        "type": "datasource",
+        "uid": "grafana"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-forza"
+            "type": "datasource",
+            "uid": "grafana"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"tire_slip_angle_rl\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "queryType": "measurements",
+          "channel": "stream/forza/forza"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "time",
+                "Time",
+                "tire_slip_angle_rl"
+              ]
+            }
+          }
         }
       ],
       "fieldConfig": {
@@ -775,25 +891,40 @@
       "id": 53,
       "type": "timeseries",
       "title": "Slip angle RR",
-      "description": "How much the tires are sliding laterally. Rising fronts = understeer; rising rears = oversteer.",
       "gridPos": {
         "x": 18,
         "y": 13,
         "w": 6,
         "h": 5
       },
+      "maxDataPoints": 7200,
       "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-forza"
+        "type": "datasource",
+        "uid": "grafana"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-forza"
+            "type": "datasource",
+            "uid": "grafana"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"tire_slip_angle_rr\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "queryType": "measurements",
+          "channel": "stream/forza/forza"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "time",
+                "Time",
+                "tire_slip_angle_rr"
+              ]
+            }
+          }
         }
       ],
       "fieldConfig": {
@@ -828,25 +959,40 @@
       "id": 60,
       "type": "timeseries",
       "title": "Susp travel FL",
-      "description": "Dive under braking, squat under power, roll in corners.",
       "gridPos": {
         "x": 0,
         "y": 18,
         "w": 6,
         "h": 5
       },
+      "maxDataPoints": 7200,
       "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-forza"
+        "type": "datasource",
+        "uid": "grafana"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-forza"
+            "type": "datasource",
+            "uid": "grafana"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"suspension_travel_meters_fl\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "queryType": "measurements",
+          "channel": "stream/forza/forza"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "time",
+                "Time",
+                "suspension_travel_meters_fl"
+              ]
+            }
+          }
         }
       ],
       "fieldConfig": {
@@ -881,25 +1027,40 @@
       "id": 61,
       "type": "timeseries",
       "title": "Susp travel FR",
-      "description": "Dive under braking, squat under power, roll in corners.",
       "gridPos": {
         "x": 6,
         "y": 18,
         "w": 6,
         "h": 5
       },
+      "maxDataPoints": 7200,
       "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-forza"
+        "type": "datasource",
+        "uid": "grafana"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-forza"
+            "type": "datasource",
+            "uid": "grafana"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"suspension_travel_meters_fr\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "queryType": "measurements",
+          "channel": "stream/forza/forza"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "time",
+                "Time",
+                "suspension_travel_meters_fr"
+              ]
+            }
+          }
         }
       ],
       "fieldConfig": {
@@ -934,25 +1095,40 @@
       "id": 62,
       "type": "timeseries",
       "title": "Susp travel RL",
-      "description": "Dive under braking, squat under power, roll in corners.",
       "gridPos": {
         "x": 0,
         "y": 23,
         "w": 6,
         "h": 5
       },
+      "maxDataPoints": 7200,
       "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-forza"
+        "type": "datasource",
+        "uid": "grafana"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-forza"
+            "type": "datasource",
+            "uid": "grafana"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"suspension_travel_meters_rl\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "queryType": "measurements",
+          "channel": "stream/forza/forza"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "time",
+                "Time",
+                "suspension_travel_meters_rl"
+              ]
+            }
+          }
         }
       ],
       "fieldConfig": {
@@ -987,25 +1163,40 @@
       "id": 63,
       "type": "timeseries",
       "title": "Susp travel RR",
-      "description": "Dive under braking, squat under power, roll in corners.",
       "gridPos": {
         "x": 6,
         "y": 23,
         "w": 6,
         "h": 5
       },
+      "maxDataPoints": 7200,
       "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-forza"
+        "type": "datasource",
+        "uid": "grafana"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-forza"
+            "type": "datasource",
+            "uid": "grafana"
           },
-          "query": "from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\")\n  |> filter(fn: (r) => r._field == \"suspension_travel_meters_rr\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)"
+          "queryType": "measurements",
+          "channel": "stream/forza/forza"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "time",
+                "Time",
+                "suspension_travel_meters_rr"
+              ]
+            }
+          }
         }
       ],
       "fieldConfig": {
@@ -1039,26 +1230,43 @@
     {
       "id": 7,
       "type": "timeseries",
-      "title": "Speed (km/h) & G-forces (g)",
-      "description": "Speed converted from m/s; lateral and longitudinal acceleration in g.",
+      "title": "Speed (km/h) & G-forces (g)  -  live",
       "gridPos": {
         "x": 12,
         "y": 18,
         "w": 12,
         "h": 10
       },
+      "maxDataPoints": 7200,
       "datasource": {
-        "type": "influxdb",
-        "uid": "influxdb-forza"
+        "type": "datasource",
+        "uid": "grafana"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
-            "type": "influxdb",
-            "uid": "influxdb-forza"
+            "type": "datasource",
+            "uid": "grafana"
           },
-          "query": "speed = from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\" and r._field == \"speed\")\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: r._value * 3.6, _field: \"speed_kmh\" }))\ng = from(bucket: \"${bucket}\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"forza\" and (r._field == \"acceleration_x\" or r._field == \"acceleration_z\"))\n  |> aggregateWindow(every: v.windowPeriod, fn: mean, createEmpty: false)\n  |> map(fn: (r) => ({ r with _value: r._value / 9.81, _field: if r._field == \"acceleration_x\" then \"lateral_g\" else \"longitudinal_g\" }))\nunion(tables: [speed, g])"
+          "queryType": "measurements",
+          "channel": "stream/forza/forza"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "time",
+                "Time",
+                "speed_kmh",
+                "lateral_g",
+                "longitudinal_g"
+              ]
+            }
+          }
         }
       ],
       "fieldConfig": {
